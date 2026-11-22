@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>בקרת איכות – עוזר קולי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#12161f;--mute:#66707f;--line:#e4e8ee;--brand:#2b5cff;--ok:#0e9f6e;--warn:#d97706;--bad:#dc2626}
+*{box-sizing:border-box}
+body{margin:0;font-family:Heebo,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+header{background:#fff;border-bottom:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+h1{font-size:18px;margin:0;font-weight:800}
+nav{display:flex;gap:6px;margin-inline-start:auto;flex-wrap:wrap}
+nav button{border:1px solid var(--line);background:#fff;padding:8px 14px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:14px}
+nav button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+main{padding:20px;max-width:1180px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.kpi .n{font-size:28px;font-weight:800;line-height:1.1}
+.kpi .l{color:var(--mute);font-size:13px;margin-top:4px}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);font-size:14px}
+th{background:#fafbfc;font-weight:600;color:var(--mute);font-size:13px}
+tr:hover td{background:#f9fbff;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.turn{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.turn h4{margin:0 0 8px;font-size:15px}
+.meta{color:var(--mute);font-size:13px;display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#eef2ff;color:#3349a3}
+.tag.miss{background:#fff1f2;color:#b91c1c}
+.tag.certain{background:#ecfdf5;color:#047857}
+.tag.uncertain{background:#fff7ed;color:#b45309}
+audio{width:100%;margin-top:6px}
+.rate{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.rate button{border:1px solid var(--line);background:#fff;padding:7px 11px;border-radius:9px;cursor:pointer;font-size:13px}
+.rate button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.muted{color:var(--mute)}
+.pill{background:#f1f5f9;border-radius:8px;padding:6px 10px;font-size:13px;color:var(--mute)}
+a{color:var(--brand)}
+</style></head><body>
+<header><h1>בקרת איכות – העוזר הקולי</h1>
+<nav><button data-t="dash" class="on">לוח בקרה</button><button data-t="calls">שיחות</button><button data-t="issues">תקלות</button><button data-t="sync">סנכרון</button></nav></header>
+<main id="app">טוען…</main>
+<script>
+const $=s=>document.querySelector(s), el=(h)=>{const d=document.createElement('div');d.innerHTML=h;return d.firstElementChild};
+const fmt=s=>s?s.replace('T',' ').slice(0,16):'—';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const RATE={1:'מדויק',2:'טוב, אפשר לשפר',3:'חלקי',4:'שגוי'};
+let tab='dash';
+async function j(u,o){const r=await fetch(u,o);return r.json()}
+function nav(t){tab=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));render()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>nav(b.dataset.t));
+async function render(){
+  const app=$('#app');
+  if(tab==='dash'){
+    const s=await j('/api/stats');
+    app.innerHTML=`<div class="grid">
+      <div class="card kpi"><div class="n">${s.calls}</div><div class="l">שיחות</div></div>
+      <div class="card kpi"><div class="n">${s.turns}</div><div class="l">תורות</div></div>
+      <div class="card kpi"><div class="n">${s.recordings}</div><div class="l">הקלטות מקושרות</div></div>
+      <div class="card kpi"><div class="n">${s.missing}</div><div class="l">תורות עם נתון חסר</div></div>
+      <div class="card kpi"><div class="n">${s.ratings}</div><div class="l">דירוגים</div></div>
+      <div class="card kpi"><div class="n">${s.issues}</div><div class="l">תקלות פתוחות</div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h3 style="margin:0 0 10px;font-size:15px">שיחות לפי יום</h3>
+      ${(s.by_day||[]).map(d=>`<div style="display:flex;align-items:center;gap:10px;margin:4px 0"><span class="muted" style="width:90px">${d.d}</span><div style="height:10px;background:var(--brand);border-radius:5px;width:${Math.min(100,d.n*4)}%"></div><span class="muted">${d.n}</span></div>`).join('')||'<p class="muted">אין נתונים</p>'}
+    </div>
+    <div class="card" style="margin-top:16px"><h3 style="margin:0 0 10px;font-size:15px">ודאות שיוך הקלטות</h3>
+      ${(s.confidence||[]).map(c=>`<span class="tag ${c.confidence}">${c.confidence}: ${c.n}</span> `).join('')}
+    </div>`;
+  }
+  if(tab==='calls'){
+    app.innerHTML=`<div class="toolbar"><input id="q" placeholder="חיפוש לפי מזהה או טלפון"><button class="pill" id="go">סנן</button><span class="pill" id="cnt"></span></div><div id="list"></div>`;
+    const load=async()=>{const s=$('#q').value.trim();const d=await j('/api/calls?limit=300&search='+encodeURIComponent(s));
+      $('#cnt').textContent=d.calls.length+' שיחות';
+      $('#list').innerHTML='<table><thead><tr><th>מועד</th><th>טלפון</th><th>תורות</th><th>משך</th><th>דירוג</th><th>מזהה</th></tr></thead><tbody>'+
+        d.calls.map(c=>`<tr data-id="${esc(c.call_id)}"><td>${fmt(c.start_at)}</td><td>${esc(c.phone)}</td><td>${c.turns_count}</td><td>${c.duration_sec}s</td><td>${c.avg_rating?Number(c.avg_rating).toFixed(1):'—'}</td><td class="muted">${esc(c.call_id.slice(0,8))}</td></tr>`).join('')+'</tbody></table>';
+      document.querySelectorAll('#list tbody tr').forEach(tr=>tr.onclick=()=>openCall(tr.dataset.id));};
+    $('#go').onclick=load; $('#q').onkeydown=e=>{if(e.key==='Enter')load()}; await load();
+  }
+  if(tab==='issues'){const d=await j('/api/issues');
+    app.innerHTML='<div class="card"><h3 style="margin-top:0">תקלות</h3>'+(d.issues.length?d.issues.map(i=>`<div class="turn"><h4>${esc(i.title)}</h4><div class="meta"><span class="tag">${esc(i.status)}</span><span>חומרה ${i.severity||'—'}</span></div><p>${esc(i.description||'')}</p></div>`).join(''):'<p class="muted">עוד אין תקלות. דרג תשובות במסך השיחה והן יופיעו כאן.</p>')+'</div>';}
+  if(tab==='sync'){const d=await j('/api/sync-jobs');
+    app.innerHTML='<div class="card"><h3 style="margin-top:0">ריצות סנכרון</h3>'+(d.jobs.length?`<table><thead><tr><th>התחלה</th><th>סיום</th><th>סטטוס</th><th>חודשים</th><th>שיחות</th><th>תורות</th></tr></thead><tbody>${d.jobs.map(x=>`<tr><td>${fmt(x.started_at)}</td><td>${fmt(x.finished_at)}</td><td>${esc(x.status)}</td><td class="muted">${esc(x.months_scanned)}</td><td>${x.calls_new}</td><td>${x.turns_new}</td></tr>`).join('')}</tbody></table>`:'<p class="muted">עוד לא רצה סנכרון.</p>')+'</div>';}
+}
+async function openCall(id){
+  const d=await j('/api/calls/'+encodeURIComponent(id));
+  const c=d.call;
+  const app=$('#app');
+  app.innerHTML=`<button class="pill" id="back">→ חזרה לרשימה</button>
+   <div class="card" style="margin:12px 0"><h3 style="margin:0 0 6px">שיחה ${esc(c.call_id.slice(0,10))}</h3>
+   <div class="meta"><span>${fmt(c.start_at)}</span><span>טלפון ${esc(c.phone)}</span><span>${c.duration_sec} שניות</span><span>${c.turns_count} תורות</span><span>${c.api_calls_count} קריאות API</span></div></div>
+   <div id="turns"></div>`;
+  $('#back').onclick=()=>nav('calls');
+  const box=$('#turns');
+  box.innerHTML=d.turns.map(t=>{
+    const cur=(d.ratings||[]).find(r=>r.turn_seq===t.seq&&!r.superseded);
+    return `<div class="turn" data-seq="${t.seq}">
+      <h4>תור ${t.seq} <span class="tag ${t.confidence}">${t.confidence}</span> ${t.data_missing?'<span class="tag miss">נתון חסר</span>':''}</h4>
+      <div class="meta"><span>${fmt(t.enter_at)}</span><span>משך ${t.duration_sec}s</span><span>תגובת API ${t.response_sec==null?'—':t.response_sec+'s'}</span><span>${t.api_calls} קריאות</span></div>
+      ${t.question_path?`<div class="muted">הקלטת השאלה: ${esc(t.question_path)}</div><audio controls preload="none" src="/audio?path=${encodeURIComponent(t.question_path)}"></audio>`:'<div class="muted">אין הקלטת שאלה מקושרת</div>'}
+      ${t.answer_path?`<div class="muted" style="margin-top:8px">אודיו התשובה: ${esc(t.answer_path)} — הקובץ נמחק מימות, לא ניתן להשמיע</div>`:''}
+      <div class="rate">${[1,2,3,4].map(k=>`<button data-k="${k}" class="${cur&&cur.score===k?'on':''}">${RATE[k]}</button>`).join('')}</div>
+      <textarea placeholder="הערה (אופציונלי)" style="width:100%;margin-top:8px" rows="2">${cur?esc(cur.note||''):''}</textarea>
+    </div>`}).join('');
+  box.querySelectorAll('.turn').forEach(tEl=>{
+    const seq=+tEl.dataset.seq, ta=tEl.querySelector('textarea');
+    tEl.querySelectorAll('.rate button').forEach(b=>b.onclick=async()=>{
+      tEl.querySelectorAll('.rate button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+      await fetch('/api/ratings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({call_id:c.call_id,turn_seq:seq,score:+b.dataset.k,note:ta.value})});
+    });
+  });
+}
+render();
+</script></body></html>
