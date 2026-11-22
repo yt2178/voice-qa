@@ -10,11 +10,28 @@ const K = {
 };
 
 async function ymToken(env) {
-  if (TOKEN && Date.now() - TOKEN_AT < 25 * 60e3) return TOKEN;
+  const now = Date.now();
+  if (TOKEN && now - TOKEN_AT < 20 * 60e3) return TOKEN;
+  try {
+    const cached = await env.QA_DATA.get("ym:token");
+    if (cached) { const o = JSON.parse(cached); if (o.t && now - o.at < 20 * 60e3) { TOKEN = o.t; TOKEN_AT = o.at; return TOKEN; } }
+    const lock = await env.QA_DATA.get("ym:lock");
+    if (lock && now < Number(lock)) throw new Error("yemot_locked");
+  } catch (e) {
+    if (String(e.message).includes("yemot_locked")) throw e;
+  }
   const r = await fetch(`${YM}/Login?username=${encodeURIComponent(env.YEMOT_USERNAME)}&password=${encodeURIComponent(env.YEMOT_PASSWORD)}`, { headers: { "User-Agent": "Mozilla/5.0 (compatible; voice-qa/1.0)" } });
-  const j = await r.json();
-  if (!j.token) throw new Error("login_failed");
-  TOKEN = j.token; TOKEN_AT = Date.now();
+  const txt = await r.text();
+  let j = {};
+  try { j = JSON.parse(txt); } catch (_) {}
+  if (!j.token) {
+    if (String(txt).includes("bruteforce") || String(txt).includes("locked")) {
+      await env.QA_DATA.put("ym:lock", String(now + 20 * 60e3));
+    }
+    throw new Error("login_failed");
+  }
+  TOKEN = j.token; TOKEN_AT = now;
+  try { await env.QA_DATA.put("ym:token", JSON.stringify({ t: j.token, at: now })); } catch (_) {}
   return TOKEN;
 }
 async function ymText(env, path) {
